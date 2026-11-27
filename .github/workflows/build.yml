@@ -1,1 +1,55 @@
 
+name: Build native library
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        abi:
+          - arm64-v8a
+          - armeabi-v7a
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+          add-to-path: false
+          local-cache: true
+
+      - name: Configure
+        env:
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cmake -S src/main/cpp -B build/${{ matrix.abi }} \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK_PATH/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=android-24 \
+            -DANDROID_STL=c++_shared \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/${{ matrix.abi }} --config Release
+
+      - name: Collect outputs
+        env:
+          NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          mkdir -p out/${{ matrix.abi }}
+          cp build/${{ matrix.abi }}/libkesho_cad.so out/${{ matrix.abi }}/
+          NDK_LIB=$(find "$NDK_PATH" -name libc++_shared.so -path "*${{ matrix.abi }}*" | head -n 1)
+          cp "$NDK_LIB" out/${{ matrix.abi }}/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.abi }}
+          path: out/${{ matrix.abi }}/
