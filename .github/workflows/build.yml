@@ -9,24 +9,29 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         abi: [arm64-v8a, armeabi-v7a]
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup NDK
+        id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r26d
           add-to-path: false
           local-cache: true
 
+      - name: Show NDK path
+        run: echo "NDK path = ${{ steps.setup-ndk.outputs.ndk-path }}"
+
       - name: Configure
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           cmake -S src/main/cpp -B build/${{ matrix.abi }} \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
             -DANDROID_STL=c++_shared \
@@ -36,6 +41,8 @@ jobs:
         run: cmake --build build/${{ matrix.abi }} --config Release
 
       - name: Collect outputs
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           mkdir -p out/${{ matrix.abi }}
           cp build/${{ matrix.abi }}/libkesho_cad.so out/${{ matrix.abi }}/
