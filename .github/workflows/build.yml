@@ -47,8 +47,20 @@ jobs:
         run: |
           mkdir -p out/${{ matrix.abi }}
           cp build/${{ matrix.abi }}/libkesho_cad.so out/${{ matrix.abi }}/
-          NDK_LIB=$(find "$ANDROID_NDK_HOME" -name libc++_shared.so -path "*${{ matrix.abi }}*" | head -n 1)
+
+          if [ "${{ matrix.abi }}" = "arm64-v8a" ]; then
+            TRIPLE=aarch64-linux-android
+          else
+            TRIPLE=arm-linux-androideabi
+          fi
+
+          NDK_LIB=$(find "$ANDROID_NDK_HOME" -name libc++_shared.so -path "*/$TRIPLE/*" | head -n 1)
+          if [ -z "$NDK_LIB" ]; then
+            echo "libc++_shared.so not found for $TRIPLE"
+            exit 1
+          fi
           cp "$NDK_LIB" out/${{ matrix.abi }}/
+          ls -l out/${{ matrix.abi }}/
 
       - uses: actions/upload-artifact@v4
         with:
