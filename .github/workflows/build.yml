@@ -19,12 +19,14 @@ jobs:
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d
+          ndk-version: r27c
           add-to-path: false
           local-cache: true
 
-      - name: Show NDK path
+          - name: Show NDK path
         run: echo "NDK path = ${{ steps.setup-ndk.outputs.ndk-path }}"
+
+    
 
       - name: Configure
         env:
@@ -35,7 +37,10 @@ jobs:
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=android-24 \
             -DANDROID_STL=c++_shared \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+      
 
       - name: Build
         run: cmake --build build/${{ matrix.abi }} --config Release
