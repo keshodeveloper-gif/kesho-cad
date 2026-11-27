@@ -21,10 +21,18 @@ jobs:
         with:
           ndk-version: r27c
           add-to-path: false
-          local-cache: true
+          local-cache: false
 
       - name: Show NDK path
         run: echo "NDK path = ${{ steps.setup-ndk.outputs.ndk-path }}"
+
+      - name: Check compiler
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          ls -l "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/" | grep -E "clang\+\+" || true
+          test -x "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++" \
+            && echo "clang++ OK" || (echo "clang++ MISSING" && exit 1)
 
       - name: Configure
         env:
