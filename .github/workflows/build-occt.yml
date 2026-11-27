@@ -63,23 +63,50 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
-          mkdir -p out/${{ matrix.abi }}
-          cp occt-install/${{ matrix.abi }}/lib/*.so out/${{ matrix.abi }}/
+          set -e
+          ABI=${{ matrix.abi }}
+          LIBDIR="$PWD/occt-install/$ABI/lib"
+          OUT="out/$ABI"
+          mkdir -p "$OUT"
 
-          if [ "${{ matrix.abi }}" = "arm64-v8a" ]; then
-            TRIPLE=aarch64-linux-android
-          else
-            TRIPLE=arm-linux-androideabi
-          fi
+          if [ "$ABI" = "arm64-v8a" ]; then TRIPLE=aarch64-linux-android; else TRIPLE=arm-linux-androideabi; fi
           NDK_LIB=$(find "$ANDROID_NDK_HOME" -name libc++_shared.so -path "*/$TRIPLE/*" | head -n 1)
-          cp "$NDK_LIB" out/${{ matrix.abi }}/
+          cp "$NDK_LIB" "$OUT/"
 
-          echo "--- NEEDED of each lib ---"
-          for f in out/${{ matrix.abi }}/*.so; do
-            echo "== $f"
-            readelf -d "$f" | grep NEEDED || true
+          declare -A SEEN
+          ORDER=()
+          visit() {
+            local lib="$1"
+            if [ -n "${SEEN[$lib]:-}" ]; then return; fi
+            SEEN[$lib]=1
+            if [ ! -f "$LIBDIR/$lib" ]; then return; fi
+            local dep
+            for dep in $(readelf -d "$LIBDIR/$lib" | sed -n 's/.*Shared library: \[\(.*\)\]/\1/p'); do
+              visit "$dep"
+            done
+            ORDER+=("$lib")
+          }
+
+          for seed in libTKDESTEP.so libTKDEIGES.so libTKMesh.so; do
+            visit "$seed"
           done
-          ls -lh out/${{ matrix.abi }}/
+
+          for lib in "${ORDER[@]}"; do
+            cp "$LIBDIR/$lib" "$OUT/"
+          done
+
+          printf '%s\n' "${ORDER[@]}" > "$OUT/load_order.txt"
+
+          {
+            echo '        System.loadLibrary("c++_shared");'
+            for lib in "${ORDER[@]}"; do
+              n=${lib#lib}; n=${n%.so}
+              echo "        System.loadLibrary(\"$n\");"
+            done
+          } > "$OUT/CadLoad.txt"
+
+          echo "Libraries copied: ${#ORDER[@]}"
+          ls -lh "$OUT"
 
       - uses: actions/upload-artifact@v4
         with:
