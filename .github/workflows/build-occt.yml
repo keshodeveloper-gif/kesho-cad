@@ -101,7 +101,7 @@ jobs:
             ORDER+=("$lib")
           }
 
-          for seed in libTKDESTEP.so libTKDEIGES.so libTKMesh.so; do
+          for seed in libTKDESTEP.so libTKDEIGES.so libTKXDESTEP.so libTKXDEIGES.so libTKMesh.so; do
             visit "$seed"
           done
 
