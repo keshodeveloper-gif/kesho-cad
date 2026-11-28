@@ -59,6 +59,17 @@ jobs:
       - name: Install OCCT
         run: cmake --install occt-build/${{ matrix.abi }}
 
+      - name: Diagnose XDE libs
+        run: |
+          echo "=== XD libs in install lib dir ==="
+          ls occt-install/${{ matrix.abi }}/lib | grep -i XD || echo "NONE"
+          echo "=== XD libs anywhere in build dir ==="
+          find occt-build/${{ matrix.abi }} -name "*XD*" | head -30 || true
+          echo "=== Toolkit definitions in OCCT source ==="
+          grep -rln "TKXDESTEP" occt-src --include=*.txt --include=*.cmake --include=*.lst 2>/dev/null | head -10 || true
+          echo "=== Full lib list ==="
+          ls occt-install/${{ matrix.abi }}/lib
+
       - name: Build kesho_cad
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
