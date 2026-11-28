@@ -3,6 +3,7 @@
 #include <cctype>
 #include <exception>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Standard_Failure.hxx>
@@ -16,6 +17,7 @@
 #include <TDF_Label.hxx>
 #include <TDF_LabelSequence.hxx>
 #include <TDataStd_Name.hxx>
+#include <XCAFApp_Application.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
 #include <XCAFDoc_ShapeTool.hxx>
 #include <XCAFDoc_ColorTool.hxx>
@@ -85,7 +87,7 @@ static bool labelColor(const Handle(XCAFDoc_ColorTool) &ct, const TDF_Label &lab
     return false;
 }
 
-/** يحوّل الـ triangulation لمثلثات بالمتر، Y-up (نفس منطق الكود القديم). */
+/** يحوّل الـ triangulation لمثلثات بالمتر، Y-up. */
 static void extractMesh(const TopoDS_Shape &s, Piece &pc) {
     int base = 0;
     TopExp_Explorer ex(s, TopAbs_FACE);
@@ -121,7 +123,7 @@ static void extractMesh(const TopoDS_Shape &s, Piece &pc) {
  * يمشي على شجرة الملف:
  * - Reference: يدخل على الأصل ويضيف الـ location.
  * - Assembly: يمشي على أبنائه.
- * - Simple shape: ده جزء مستقل، بيتحول لقطعة.
+ * - Simple shape: جزء مستقل، بيتحول لقطعة.
  */
 static void walk(Ctx &ctx, const TDF_Label &lab, const TopLoc_Location &loc,
                  const std::string &parentName, int depth) {
@@ -179,7 +181,7 @@ Java_com_kesho_blend_CadNative_ping(JNIEnv *env, jclass) {
  *  [0] Object[] : كل عنصر float[] (رؤوس x,y,z بالمتر Y-up)
  *  [1] Object[] : كل عنصر int[] (مثلثات)
  *  [2] String[] : أسماء الأجزاء
- *  [3] float[]  : ألوان sRGB (r,g,b لكل جزء)، و-1 لو الجزء مفيهوش لون
+ *  [3] float[]  : ألوان sRGB (r,g,b لكل جزء)، -1 لو الجزء مفيهوش لون
  *  [4] String   : رسالة الخطأ (فاضية لو نجح)
  */
 extern "C"
@@ -198,25 +200,33 @@ Java_com_kesho_blend_CadNative_importCadParts(JNIEnv *env, jclass, jstring jpath
         bool isStep = endsWith(low, ".stp") || endsWith(low, ".step");
         bool isIges = endsWith(low, ".igs") || endsWith(low, ".iges");
 
-        Handle(TDocStd_Document) doc = new TDocStd_Document(TCollection_ExtendedString("BinXCAF"));
+        // MDTV-XCAF: الـ format الافتراضي لـ XCAF، متعرّف في TKXCAF نفسها
+        Handle(XCAFApp_Application) app = XCAFApp_Application::GetApplication();
+        Handle(TDocStd_Document) doc;
+        app->NewDocument(TCollection_ExtendedString("MDTV-XCAF"), doc);
+        if (doc.IsNull()) {
+            err = "مقدرتش أنشئ مستند XCAF";
+        }
 
-        if (isStep) {
-            STEPCAFControl_Reader rd;
-            rd.SetColorMode(Standard_True);
-            rd.SetNameMode(Standard_True);
-            rd.SetLayerMode(Standard_False);
-            if (rd.ReadFile(path.c_str()) != IFSelect_RetDone) err = "مقدرتش أقرأ ملف STEP";
-            else if (!rd.Transfer(doc)) err = "مقدرتش أحوّل ملف STEP";
-        } else if (isIges) {
-            IGESControl_Controller::Init();
-            IGESCAFControl_Reader rd;
-            rd.SetColorMode(Standard_True);
-            rd.SetNameMode(Standard_True);
-            rd.SetLayerMode(Standard_False);
-            if (rd.ReadFile(path.c_str()) != IFSelect_RetDone) err = "مقدرتش أقرأ ملف IGES";
-            else if (!rd.Transfer(doc)) err = "مقدرتش أحوّل ملف IGES";
-        } else {
-            err = "الصيغة مش مدعومة في المحرك الهندسي";
+        if (err.empty()) {
+            if (isStep) {
+                STEPCAFControl_Reader rd;
+                rd.SetColorMode(Standard_True);
+                rd.SetNameMode(Standard_True);
+                rd.SetLayerMode(Standard_False);
+                if (rd.ReadFile(path.c_str()) != IFSelect_RetDone) err = "مقدرتش أقرأ ملف STEP";
+                else if (!rd.Transfer(doc)) err = "مقدرتش أحوّل ملف STEP";
+            } else if (isIges) {
+                IGESControl_Controller::Init();
+                IGESCAFControl_Reader rd;
+                rd.SetColorMode(Standard_True);
+                rd.SetNameMode(Standard_True);
+                rd.SetLayerMode(Standard_False);
+                if (rd.ReadFile(path.c_str()) != IFSelect_RetDone) err = "مقدرتش أقرأ ملف IGES";
+                else if (!rd.Transfer(doc)) err = "مقدرتش أحوّل ملف IGES";
+            } else {
+                err = "الصيغة مش مدعومة في المحرك الهندسي";
+            }
         }
 
         if (err.empty()) {
