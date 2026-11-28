@@ -59,6 +59,20 @@ jobs:
       - name: Install OCCT
         run: cmake --install occt-build/${{ matrix.abi }}
 
+      - name: Build kesho_cad
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          cmake -S src/main/cpp -B kesho-build/${{ matrix.abi }} \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=android-24 \
+            -DANDROID_STL=c++_shared \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DOCCT_DIR="$PWD/occt-install/${{ matrix.abi }}"
+          cmake --build kesho-build/${{ matrix.abi }} --config Release
+
       - name: Collect outputs
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
@@ -95,16 +109,9 @@ jobs:
             cp "$LIBDIR/$lib" "$OUT/"
           done
 
+          cp "kesho-build/$ABI/libkesho_cad.so" "$OUT/"
+
           printf '%s\n' "${ORDER[@]}" > "$OUT/load_order.txt"
-
-          {
-            echo '        System.loadLibrary("c++_shared");'
-            for lib in "${ORDER[@]}"; do
-              n=${lib#lib}; n=${n%.so}
-              echo "        System.loadLibrary(\"$n\");"
-            done
-          } > "$OUT/CadLoad.txt"
-
           echo "Libraries copied: ${#ORDER[@]}"
           ls -lh "$OUT"
 
