@@ -15,7 +15,7 @@ if(OCCT_DIR)
     TKernel TKDE TKCDF TKLCAF TKMath TKG2d TKG3d TKGeomBase
     TKBRep TKGeomAlgo TKTopAlgo TKPrim TKShHealing TKBO TKCAF
     TKService TKMesh TKHLR TKV3d TKVCAF TKXCAF TKXSBase
-    TKDESTEP TKBool TKDEIGES)
+    TKDESTEP TKDEIGES TKXDESTEP TKXDEIGES TKBool)
 endif()
 
 find_library(log-lib log)
