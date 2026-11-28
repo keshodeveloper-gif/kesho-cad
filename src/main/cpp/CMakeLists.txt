@@ -12,10 +12,10 @@ if(OCCT_DIR)
   target_include_directories(kesho_cad PRIVATE ${OCCT_DIR}/include/opencascade)
   target_link_directories(kesho_cad PRIVATE ${OCCT_DIR}/lib)
   target_link_libraries(kesho_cad PRIVATE
-    TKernel TKDE TKCDF TKLCAF TKMath TKG2d TKG3d TKGeomBase
-    TKBRep TKGeomAlgo TKTopAlgo TKPrim TKShHealing TKBO TKCAF
-    TKService TKMesh TKHLR TKV3d TKVCAF TKXCAF TKXSBase
-    TKDESTEP TKDEIGES TKXDESTEP TKXDEIGES TKBool)
+    TKernel TKMath TKG2d TKG3d TKGeomBase TKBRep TKGeomAlgo TKTopAlgo
+    TKPrim TKShHealing TKBO TKCAF TKLCAF TKCDF TKDE TKService TKMesh
+    TKHLR TKV3d TKVCAF TKXCAF TKXSBase TKBin TKBinXCAF
+    TKDESTEP TKDEIGES TKBool)
 endif()
 
 find_library(log-lib log)
